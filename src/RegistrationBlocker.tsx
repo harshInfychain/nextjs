@@ -124,9 +124,9 @@ export default function MediaPipeWallet() {
       console.log(`[Canvas] Base64 Preview: ${faceImageBase64.substring(0, 50)}...`);
 
       const endpoint = mode === 'register' ? '/api/register' : '/api/unlock';
-      console.log(`[API] Initiating POST request to http://169.254.85.43:5000${endpoint}`);
+      console.log(`[API] Initiating POST request to http://localhost:5000${endpoint}`);
 
-      const response = await fetch(`http://169.254.85.43:5000${endpoint}`, {
+      const response = await fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, image: faceImageBase64 })
