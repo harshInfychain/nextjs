@@ -6,7 +6,12 @@ interface AuthResponse {
   message: string;
 }
 
-export default function MediaPipeWallet() {
+// ⚠️ CHANGE THIS URL depending on how you are testing!
+// PC Testing: "http://localhost:5000"
+// Phone Testing (via Ngrok): "https://YOUR-NGROK-LINK.ngrok-free.app"
+const API_URL = "http://localhost:5000"; 
+
+export default function RegistrationBlocker() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -20,13 +25,10 @@ export default function MediaPipeWallet() {
     const initializeAI = async () => {
       console.log("[Init] Starting MediaPipe initialization...");
       try {
-        console.log("[Init] Fetching WASM files from CDN...");
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
         );
-        console.log("[Init] Vision tasks loaded successfully:", vision);
 
-        console.log("[Init] Creating FaceDetector model...");
         const faceDetector = await FaceDetector.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
@@ -35,7 +37,6 @@ export default function MediaPipeWallet() {
           runningMode: "VIDEO"
         });
 
-        console.log("[Init] FaceDetector created:", faceDetector);
         setDetector(faceDetector);
         setMessage('MediaPipe Active. Please face the camera.');
         startCamera();
@@ -50,98 +51,70 @@ export default function MediaPipeWallet() {
 
   // 2. Start the Webcam
   const startCamera = async () => {
-    console.log("[Camera] Requesting webcam permissions...");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      console.log("[Camera] Permission granted. Stream acquired:", stream);
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        console.log("[Camera] Stream attached to video element.");
       }
     } catch (err) {
-      console.error("[Camera] Permission denied or hardware error:", err);
-      setMessage("Camera permission denied.");
+      setMessage("Camera permission denied. Please allow camera access.");
     }
   };
 
   // 3. Scan and Capture using MediaPipe
   const handleFaceScan = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log(`[Scan] Action triggered. Mode: ${mode}, Email: ${email}`);
 
-    if (!detector) {
-      console.warn("[Scan] Aborted: Detector is not initialized yet.");
-      return;
-    }
-    if (!videoRef.current || !canvasRef.current) {
-      console.warn("[Scan] Aborted: Video or Canvas refs are missing.");
-      return;
-    }
+    if (!detector || !videoRef.current || !canvasRef.current) return;
 
     const vWidth = videoRef.current.videoWidth;
     const vHeight = videoRef.current.videoHeight;
     const vReady = videoRef.current.readyState;
 
-    console.log(`[Scan] Video status - Width: ${vWidth}, Height: ${vHeight}, ReadyState: ${vReady}`);
-
     // 🛑 Prevent scanning if the video hasn't loaded its dimensions yet
     if (vWidth === 0 || vHeight === 0 || vReady < 2) {
-      console.warn("[Scan] Video not ready. Halting to prevent C++ WASM crash.");
       setMessage('Camera is still warming up. Please wait a second and try again.');
       return;
     }
 
     setMessage('Analyzing biometrics...');
 
-    // Get the exact timestamp for the video frame
     const startTimeMs = performance.now();
-    console.log(`[Scan] Running detection at timestamp: ${startTimeMs}ms`);
 
     try {
       // Run the detector
       const detections = detector.detectForVideo(videoRef.current, startTimeMs);
-      console.log("[Scan] Raw detection results:", detections);
 
       if (detections.detections.length === 0) {
-        console.log("[Scan] Result: 0 faces found.");
         setMessage('No face detected. Please look directly at the camera.');
         return;
       }
 
-      console.log(`[Scan] Result: ${detections.detections.length} face(s) found. Capturing frame...`);
-
-      // Capture the current frame as a high-quality Base64 Image
+      // Capture the current frame
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       canvas.width = vWidth;
       canvas.height = vHeight;
       ctx?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      console.log(`[Canvas] Image drawn to canvas. Dimensions: ${canvas.width}x${canvas.height}`);
 
       const faceImageBase64 = canvas.toDataURL('image/jpeg', 0.9);
-      console.log(`[Canvas] Base64 Image generated. Length: ${faceImageBase64.length} chars`);
-      console.log(`[Canvas] Base64 Preview: ${faceImageBase64.substring(0, 50)}...`);
-
       const endpoint = mode === 'register' ? '/api/register' : '/api/unlock';
-      console.log(`[API] Initiating POST request to http://localhost:5000${endpoint}`);
+      
+      console.log(`[API] Sending request to: ${API_URL}${endpoint}`);
 
-      const response = await fetch(`https://abcd-12-34.ngrok-free.app${endpoint}`, {
+      // Send to Backend
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, image: faceImageBase64 })
       });
 
-      console.log(`[API] Response received. HTTP Status: ${response.status}`);
-
       const result: AuthResponse = await response.json();
-      console.log("[API] Parsed JSON Result:", result);
-
       setMessage(result.message);
 
     } catch (err) {
-      console.error("[Scan/API] CRITICAL ERROR caught in try/catch block:", err);
-      setMessage('Server connection or scanning failed.');
+      console.error("[Scan/API] Error:", err);
+      setMessage(`Server connection failed. Ensure your backend is running at ${API_URL}`);
     }
   };
 
@@ -160,9 +133,8 @@ export default function MediaPipeWallet() {
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transform scale-x-[-1]" 
           />
-          {/* Hidden canvas used for capturing the image frame */}
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
@@ -171,23 +143,17 @@ export default function MediaPipeWallet() {
           <div className="flex gap-4 mb-4 bg-[#0a0a0a] p-1 rounded-lg border border-gray-800">
             <button
               type="button"
-              onClick={() => {
-                console.log("[UI] Switched mode to: register");
-                setMode('register');
-              }}
+              onClick={() => setMode('register')}
               className={`flex-1 py-2 text-sm font-bold uppercase rounded transition-colors ${mode === 'register' ? 'bg-yellow-600 text-black' : 'text-gray-500'}`}
             >
               Register
             </button>
             <button
               type="button"
-              onClick={() => {
-                console.log("[UI] Switched mode to: unlock");
-                setMode('unlock');
-              }}
+              onClick={() => setMode('unlock')}
               className={`flex-1 py-2 text-sm font-bold uppercase rounded transition-colors ${mode === 'unlock' ? 'bg-yellow-600 text-black' : 'text-gray-500'}`}
             >
-              Unlockk
+              Unlock
             </button>
           </div>
 
