@@ -54,7 +54,7 @@ export default function MediaPipeWallet() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       console.log("[Camera] Permission granted. Stream acquired:", stream);
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         console.log("[Camera] Stream attached to video element.");
@@ -82,7 +82,7 @@ export default function MediaPipeWallet() {
     const vWidth = videoRef.current.videoWidth;
     const vHeight = videoRef.current.videoHeight;
     const vReady = videoRef.current.readyState;
-    
+
     console.log(`[Scan] Video status - Width: ${vWidth}, Height: ${vHeight}, ReadyState: ${vReady}`);
 
     // 🛑 Prevent scanning if the video hasn't loaded its dimensions yet
@@ -126,17 +126,17 @@ export default function MediaPipeWallet() {
       const endpoint = mode === 'register' ? '/api/register' : '/api/unlock';
       console.log(`[API] Initiating POST request to http://localhost:5000${endpoint}`);
 
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(`https://abcd-12-34.ngrok-free.app${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, image: faceImageBase64 })
       });
 
       console.log(`[API] Response received. HTTP Status: ${response.status}`);
-      
+
       const result: AuthResponse = await response.json();
       console.log("[API] Parsed JSON Result:", result);
-      
+
       setMessage(result.message);
 
     } catch (err) {
