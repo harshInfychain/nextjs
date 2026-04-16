@@ -187,7 +187,7 @@ export default function MediaPipeWallet() {
               }}
               className={`flex-1 py-2 text-sm font-bold uppercase rounded transition-colors ${mode === 'unlock' ? 'bg-yellow-600 text-black' : 'text-gray-500'}`}
             >
-              Unlock
+              Unlockk
             </button>
           </div>
 
